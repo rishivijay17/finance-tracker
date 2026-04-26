@@ -4,6 +4,8 @@ A web app that parses your bank statement PDFs, categorizes transactions automat
 
 Built this for myself — I'm a final year student living alone and wanted a proper way to track my expenses without doing it manually.
 
+![Dashboard](screenshots/dashboard.png)
+
 ---
 
 ## What It Does
