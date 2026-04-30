@@ -1,132 +1,483 @@
-import { useState, useEffect, useCallback } from 'react'
-import { DollarSign, TrendingDown, TrendingUp, Activity } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import {
+  IndianRupee, DollarSign, TrendingDown, TrendingUp, Activity,
+  Flame, PiggyBank, AlertOctagon, ChevronDown, Trash2, Calendar,
+} from 'lucide-react'
 import StatCard from '../components/StatCard'
 import SpendingPieChart from '../components/SpendingPieChart'
 import MonthlyBarChart from '../components/MonthlyBarChart'
 import AnomalyCard from '../components/AnomalyCard'
 import ForecastCard from '../components/ForecastCard'
 import UploadZone from '../components/UploadZone'
-import { getDashboard, getForecast, getAnomalies } from '../api/client'
+import {
+  getDashboard, getForecast, getAnomalies, getSessions, deleteSession,
+} from '../api/client'
+import toast from 'react-hot-toast'
 
 function Spinner() {
   return (
     <div className="flex items-center justify-center h-full min-h-96">
-      <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      <div
+        style={{
+          width: '36px',
+          height: '36px',
+          border: '3px solid #1E1E2E',
+          borderTopColor: '#6C63FF',
+          borderRadius: '50%',
+        }}
+        className="animate-spin"
+      />
+    </div>
+  )
+}
+
+function InsightCard({ icon: Icon, label, value, color = '#6C63FF' }) {
+  return (
+    <div
+      className="rounded-xl p-4 flex items-center gap-3"
+      style={{ background: '#111118', border: '1px solid #1E1E2E' }}
+    >
+      <div
+        style={{
+          width: '34px',
+          height: '34px',
+          background: `${color}18`,
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <Icon size={15} color={color} />
+      </div>
+      <div className="min-w-0">
+        <p style={{ color: '#6B6B8A', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {label}
+        </p>
+        <p className="truncate" style={{ color: '#E8E8F0', fontSize: '13px', fontWeight: 700, marginTop: '2px' }}>
+          {value}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function SessionDropdown({ sessions, selectedId, onSelect, onRemove }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  const current = sessions.find((s) => s.id === selectedId) ?? sessions[0]
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  if (!sessions.length) return null
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2"
+        style={{
+          padding: '8px 12px',
+          background: '#111118',
+          border: '1px solid #1E1E2E',
+          borderRadius: '10px',
+          color: '#E8E8F0',
+          fontSize: '12px',
+          fontWeight: 600,
+          cursor: 'pointer',
+          fontFamily: 'Inter, system-ui, sans-serif',
+          minWidth: '180px',
+          justifyContent: 'space-between',
+        }}
+      >
+        <span className="flex items-center gap-2">
+          <Calendar size={13} color="#6C63FF" />
+          {current?.statement_period ?? 'Select statement'}
+        </span>
+        <ChevronDown
+          size={13}
+          color="#6B6B8A"
+          style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
+        />
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            right: 0,
+            minWidth: '240px',
+            background: '#111118',
+            border: '1px solid #1E1E2E',
+            borderRadius: '12px',
+            padding: '6px',
+            zIndex: 50,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          }}
+        >
+          {sessions.map((s, i) => {
+            const isSelected = s.id === selectedId
+            const isLatest = i === 0
+            return (
+              <div
+                key={s.id}
+                className="flex items-center gap-2"
+                style={{
+                  borderRadius: '8px',
+                  background: isSelected ? 'rgba(108,99,255,0.1)' : 'transparent',
+                  marginBottom: '2px',
+                }}
+              >
+                <button
+                  onClick={() => { onSelect(s.id); setOpen(false) }}
+                  style={{
+                    flex: 1,
+                    padding: '8px 10px',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <span style={{ color: isSelected ? '#6C63FF' : '#E8E8F0', fontSize: '13px', fontWeight: 600 }}>
+                    {s.statement_period ?? `Session ${s.id}`}
+                  </span>
+                  {isLatest && (
+                    <span
+                      style={{
+                        fontSize: '9px',
+                        fontWeight: 700,
+                        background: 'rgba(0,212,170,0.12)',
+                        color: '#00D4AA',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Latest
+                    </span>
+                  )}
+                  <span style={{ color: '#3A3A5C', fontSize: '11px', marginLeft: 'auto' }}>
+                    {s.transaction_count} txns
+                  </span>
+                </button>
+                <button
+                  title="Remove this statement"
+                  onClick={(e) => { e.stopPropagation(); onRemove(s.id) }}
+                  style={{
+                    padding: '6px 8px',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,71,87,0.1)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                >
+                  <Trash2 size={12} color="#FF4757" />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
 
 export default function Dashboard() {
+  const [sessions, setSessions] = useState([])
+  const [selectedId, setSelectedId] = useState(null)
   const [dashboard, setDashboard] = useState(null)
   const [forecast, setForecast] = useState(null)
   const [anomalies, setAnomalies] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const fetchAll = useCallback(async () => {
+  const loadDashboardData = async (sid) => {
+    const [d, f, a] = await Promise.all([
+      getDashboard(sid),
+      getForecast(sid),
+      getAnomalies(sid),
+    ])
+    setDashboard(d.data)
+    setForecast(f.data)
+    setAnomalies(a.data)
+  }
+
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true)
+      try {
+        const sessRes = await getSessions()
+        const list = sessRes.data
+        setSessions(list)
+        const latestId = list[0]?.id ?? null
+        setSelectedId(latestId)
+        await loadDashboardData(latestId)
+      } catch (err) {
+        console.error('Dashboard init error', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    init()
+  }, [])
+
+  const handleSessionChange = async (newId) => {
+    setSelectedId(newId)
+    setLoading(true)
     try {
-      const [d, f, a] = await Promise.all([getDashboard(), getForecast(), getAnomalies()])
-      setDashboard(d.data)
-      setForecast(f.data)
-      setAnomalies(a.data)
+      await loadDashboardData(newId)
     } catch (err) {
-      console.error('Dashboard load error', err)
+      console.error('Session change error', err)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }
 
-  useEffect(() => {
-    fetchAll()
-  }, [fetchAll])
+  const handleDeleteSession = async (sid) => {
+    const session = sessions.find((s) => s.id === sid)
+    const label = session?.statement_period ?? `Session ${sid}`
+    if (!confirm(`Remove "${label}" and all its transactions? This cannot be undone.`)) return
+    try {
+      await deleteSession(sid)
+      toast.success(`Removed ${label}`)
+      const sessRes = await getSessions()
+      const list = sessRes.data
+      setSessions(list)
+      const nextId = list[0]?.id ?? null
+      setSelectedId(nextId)
+      setLoading(true)
+      await loadDashboardData(nextId)
+    } catch (err) {
+      toast.error('Failed to remove session')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUploadSuccess = async () => {
+    try {
+      const sessRes = await getSessions()
+      const list = sessRes.data
+      setSessions(list)
+      const latestId = list[0]?.id ?? null
+      setSelectedId(latestId)
+      setLoading(true)
+      await loadDashboardData(latestId)
+    } catch (err) {
+      console.error('Post-upload refresh error', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (loading) return <Spinner />
 
-  const hasData = (dashboard?.transaction_count ?? 0) > 0
+  const hasData = sessions.length > 0 && (dashboard?.transaction_count ?? 0) > 0
+  const cur = dashboard?.currency_symbol ?? '$'
+  const CurrencyIcon = cur === '₹' ? IndianRupee : DollarSign
+
+  const topCategory = dashboard
+    ? Object.entries(dashboard.categories ?? {}).sort(([, a], [, b]) => b - a)[0]
+    : null
+  const savingsRate =
+    dashboard && dashboard.total_income > 0
+      ? ((dashboard.total_income - dashboard.total_expenses) / dashboard.total_income * 100).toFixed(0)
+      : null
+
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  })
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="page-enter" style={{ padding: '32px', maxWidth: '1280px', margin: '0 auto' }}>
+
       {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-1">Your financial overview at a glance</p>
+      <div style={{ marginBottom: '28px' }}>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 style={{ color: '#E8E8F0', fontSize: '22px', fontWeight: 800, letterSpacing: '-0.4px' }}>
+              Dashboard
+            </h1>
+            <p style={{ color: '#3A3A5C', fontSize: '12px', marginTop: '4px', fontWeight: 500 }}>
+              {today}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {sessions.length > 0 && (
+              <SessionDropdown
+                sessions={sessions}
+                selectedId={selectedId}
+                onSelect={handleSessionChange}
+                onRemove={handleDeleteSession}
+              />
+            )}
+            {hasData && (
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+                style={{ background: '#111118', border: '1px solid #1E1E2E' }}
+              >
+                <div style={{ width: '6px', height: '6px', background: '#00D4AA', borderRadius: '50%' }} className="animate-pulse" />
+                <span style={{ color: '#6B6B8A', fontSize: '11px', fontWeight: 500 }}>Live data</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Empty state — no data yet */}
+      {/* Empty state */}
       {!hasData && (
-        <div className="bg-white rounded-2xl p-10 shadow-sm border border-slate-100 text-center max-w-lg mx-auto mt-16">
-          <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <TrendingUp size={28} className="text-indigo-600" />
+        <div
+          className="rounded-2xl p-10 text-center"
+          style={{
+            background: '#111118',
+            border: '1px solid #1E1E2E',
+            maxWidth: '480px',
+            margin: '60px auto 0',
+          }}
+        >
+          <div
+            style={{
+              width: '60px',
+              height: '60px',
+              background: 'rgba(108,99,255,0.12)',
+              borderRadius: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px',
+            }}
+          >
+            <TrendingUp size={26} color="#6C63FF" />
           </div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">Welcome to Finance Tracker</h2>
-          <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+          <h2 style={{ color: '#E8E8F0', fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>
+            Welcome to Finance Tracker
+          </h2>
+          <p style={{ color: '#6B6B8A', fontSize: '13px', lineHeight: 1.6, marginBottom: '24px' }}>
             Upload your bank statement PDF below to automatically parse transactions,
-            detect spending patterns, and get AI-powered insights.
+            detect spending patterns, and unlock AI-powered financial insights.
           </p>
-          <UploadZone onSuccess={fetchAll} />
+          <UploadZone onSuccess={handleUploadSuccess} />
         </div>
       )}
 
       {/* Dashboard content */}
       {hasData && (
-        <div className="space-y-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
           {/* Stat Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               title="Total Income"
-              value={`$${dashboard.total_income.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+              value={`${cur}${dashboard.total_income.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
               icon={TrendingUp}
-              color="green"
+              color="teal"
             />
             <StatCard
               title="Total Expenses"
-              value={`$${dashboard.total_expenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+              value={`${cur}${dashboard.total_expenses.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
               icon={TrendingDown}
               color="red"
             />
             <StatCard
               title="Net Balance"
-              value={`${dashboard.net_balance >= 0 ? '+' : ''}$${Math.abs(dashboard.net_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-              icon={DollarSign}
-              color={dashboard.net_balance >= 0 ? 'green' : 'red'}
+              value={`${dashboard.net_balance >= 0 ? '+' : ''}${cur}${Math.abs(dashboard.net_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+              icon={CurrencyIcon}
+              color={dashboard.net_balance >= 0 ? 'teal' : 'red'}
             />
             <StatCard
               title="Transactions"
               value={dashboard.transaction_count}
               icon={Activity}
-              color="indigo"
-              subtitle={`${anomalies.length} anomal${anomalies.length === 1 ? 'y' : 'ies'} flagged`}
+              color="purple"
+              subtitle={anomalies.length ? `${anomalies.length} anomal${anomalies.length === 1 ? 'y' : 'ies'} flagged` : 'All clear'}
+            />
+          </div>
+
+          {/* Insights Strip */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <InsightCard
+              icon={Flame}
+              label="Top Spend Category"
+              value={topCategory ? `${topCategory[0]} · ${cur}${topCategory[1].toLocaleString('en-IN', { minimumFractionDigits: 0 })}` : 'No data'}
+              color="#FF4757"
+            />
+            <InsightCard
+              icon={PiggyBank}
+              label="Savings Rate"
+              value={savingsRate !== null ? `${savingsRate}% of income saved` : 'No income data'}
+              color="#00D4AA"
+            />
+            <InsightCard
+              icon={AlertOctagon}
+              label="Anomalies Detected"
+              value={anomalies.length ? `${anomalies.length} unusual transaction${anomalies.length !== 1 ? 's' : ''}` : 'None — all clear!'}
+              color={anomalies.length ? '#FFB800' : '#00D4AA'}
             />
           </div>
 
           {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
-              <h2 className="text-base font-semibold text-slate-800 mb-1">Spending by Category</h2>
-              <p className="text-slate-400 text-xs mb-4">Where your money is going</p>
-              <SpendingPieChart categories={dashboard.categories} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className="dark-card-static p-6">
+              <p style={{ color: '#E8E8F0', fontSize: '13px', fontWeight: 700, marginBottom: '3px' }}>
+                Spending by Category
+              </p>
+              <p style={{ color: '#3A3A5C', fontSize: '11px', marginBottom: '16px' }}>
+                Where your money is going
+              </p>
+              <SpendingPieChart categories={dashboard.categories} currency={cur} />
             </div>
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
-              <h2 className="text-base font-semibold text-slate-800 mb-1">Monthly Overview</h2>
-              <p className="text-slate-400 text-xs mb-4">Income vs expenses by month</p>
-              <MonthlyBarChart data={dashboard.monthly_data} />
+            <div className="dark-card-static p-6">
+              <p style={{ color: '#E8E8F0', fontSize: '13px', fontWeight: 700, marginBottom: '3px' }}>
+                Monthly Overview
+              </p>
+              <p style={{ color: '#3A3A5C', fontSize: '11px', marginBottom: '16px' }}>
+                Income vs expenses by month
+              </p>
+              <MonthlyBarChart data={dashboard.monthly_data} currency={cur} />
             </div>
           </div>
 
-          {/* Anomalies + Forecast Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-slate-100">
-              <h2 className="text-base font-semibold text-slate-800 mb-1">Spending Anomalies</h2>
-              <p className="text-slate-400 text-xs mb-4">Transactions that look unusual</p>
-              <AnomalyCard anomalies={anomalies} />
+          {/* Anomalies + Forecast */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <div className="lg:col-span-2 dark-card-static p-6">
+              <p style={{ color: '#E8E8F0', fontSize: '13px', fontWeight: 700, marginBottom: '3px' }}>
+                Spending Anomalies
+              </p>
+              <p style={{ color: '#3A3A5C', fontSize: '11px', marginBottom: '16px' }}>
+                Transactions that look unusual
+              </p>
+              <AnomalyCard anomalies={anomalies} currency={cur} />
             </div>
-            <ForecastCard forecast={forecast} />
+            <ForecastCard forecast={forecast} currency={cur} />
           </div>
 
           {/* Upload more */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
-            <h2 className="text-sm font-semibold text-slate-700 mb-3">Add Another Statement</h2>
-            <UploadZone onSuccess={fetchAll} />
+          <div className="dark-card-static p-5">
+            <p style={{ color: '#6B6B8A', fontSize: '12px', fontWeight: 600, marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Import More Data
+            </p>
+            <UploadZone onSuccess={handleUploadSuccess} />
           </div>
+
         </div>
       )}
     </div>

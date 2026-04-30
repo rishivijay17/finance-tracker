@@ -62,12 +62,18 @@ Return ONLY a valid JSON array — no extra text or markdown. Each object must h
 - "date": string in YYYY-MM-DD format (if year is missing, use the current year)
 - "description": clean merchant or transaction name
 - "amount": float — NEGATIVE for expenses/debits, POSITIVE for income/credits
-- "category": exactly one of ["Food", "Transport", "Shopping", "Entertainment", "Bills", "Health", "Travel", "Income", "Transfer", "Other"]
+- "category": exactly one of ["Food", "Petrol", "Groceries", "Utilities", "Miscellaneous"]
+  Use these rules:
+  * Food — Zomato, Swiggy (food orders), restaurants, cafes, food delivery
+  * Petrol — HPCL, BPCL, Indian Oil, HP Petrol, fuel pumps, petrol stations
+  * Groceries — Blinkit, Swiggy Instamart, Zepto, BigBasket, Reliance Smart, DMart, supermarkets
+  * Utilities — electricity bill, BESCOM, MSEB, Jio recharge, Airtel recharge, internet bill, Netflix, Hotstar, Amazon Prime, Spotify, gas cylinder, LPG, water bill
+  * Miscellaneous — everything else: salary credit, ATM withdrawals, Amazon shopping, Flipkart, transfers, EMIs, and any transaction that does not clearly match the above
 
 Example output:
 [
-  {{"date": "2024-03-15", "description": "Starbucks", "amount": -5.50, "category": "Food"}},
-  {{"date": "2024-03-16", "description": "Monthly Salary", "amount": 3000.00, "category": "Income"}}
+  {{"date": "2024-03-15", "description": "Zomato", "amount": -450.00, "category": "Food"}},
+  {{"date": "2024-03-16", "description": "Monthly Salary", "amount": 65000.00, "category": "Miscellaneous"}}
 ]
 
 Bank statement text:

@@ -1,25 +1,73 @@
-const colorMap = {
-  indigo: { icon: 'text-indigo-600 bg-indigo-50', border: 'border-indigo-100' },
-  green: { icon: 'text-emerald-600 bg-emerald-50', border: 'border-emerald-100' },
-  red: { icon: 'text-red-500 bg-red-50', border: 'border-red-100' },
-  amber: { icon: 'text-amber-600 bg-amber-50', border: 'border-amber-100' },
+const STYLES = {
+  purple: {
+    icon: 'rgba(108, 99, 255, 0.12)',
+    iconColor: '#6C63FF',
+    hover: 'rgba(108, 99, 255, 0.3)',
+    glow: 'rgba(108, 99, 255, 0.1)',
+  },
+  teal: {
+    icon: 'rgba(0, 212, 170, 0.12)',
+    iconColor: '#00D4AA',
+    hover: 'rgba(0, 212, 170, 0.3)',
+    glow: 'rgba(0, 212, 170, 0.1)',
+  },
+  red: {
+    icon: 'rgba(255, 71, 87, 0.12)',
+    iconColor: '#FF4757',
+    hover: 'rgba(255, 71, 87, 0.3)',
+    glow: 'rgba(255, 71, 87, 0.1)',
+  },
+  amber: {
+    icon: 'rgba(255, 184, 0, 0.12)',
+    iconColor: '#FFB800',
+    hover: 'rgba(255, 184, 0, 0.3)',
+    glow: 'rgba(255, 184, 0, 0.1)',
+  },
 }
 
-export default function StatCard({ title, value, subtitle, icon: Icon, color = 'indigo' }) {
-  const c = colorMap[color] ?? colorMap.indigo
+export default function StatCard({ title, value, subtitle, icon: Icon, color = 'purple' }) {
+  const s = STYLES[color] ?? STYLES.purple
 
   return (
-    <div className={`bg-white rounded-xl p-5 shadow-sm border ${c.border}`}>
-      <div className="flex items-start justify-between mb-3">
-        <span className="text-slate-500 text-sm font-medium">{title}</span>
+    <div className="dark-card" style={{ padding: '20px' }}>
+      <div className="flex items-start justify-between" style={{ marginBottom: '14px' }}>
+        <span style={{ color: '#6B6B8A', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {title}
+        </span>
         {Icon && (
-          <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${c.icon}`}>
-            <Icon size={17} />
+          <div
+            style={{
+              width: '34px',
+              height: '34px',
+              background: s.icon,
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <Icon size={15} color={s.iconColor} />
           </div>
         )}
       </div>
-      <p className="text-2xl font-bold text-slate-900 tracking-tight">{value}</p>
-      {subtitle && <p className="text-slate-400 text-xs mt-1">{subtitle}</p>}
+      <p
+        style={{
+          color: '#E8E8F0',
+          fontSize: '22px',
+          fontWeight: 800,
+          letterSpacing: '-0.5px',
+          lineHeight: 1,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {value}
+      </p>
+      {subtitle && (
+        <p style={{ color: '#3A3A5C', fontSize: '11px', marginTop: '6px', fontWeight: 500 }}>
+          {subtitle}
+        </p>
+      )}
     </div>
   )
 }

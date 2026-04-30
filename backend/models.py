@@ -1,9 +1,20 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey
 from sqlalchemy.sql import func
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 from database import Base
+
+
+class UploadSession(Base):
+    __tablename__ = "upload_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String, nullable=False)
+    upload_date = Column(DateTime, server_default=func.now())
+    statement_period = Column(String, nullable=True)
+    transaction_count = Column(Integer, default=0)
+    fingerprint = Column(String, nullable=True)
 
 
 class Transaction(Base):
@@ -17,7 +28,15 @@ class Transaction(Base):
     is_anomaly = Column(Boolean, default=False)
     anomaly_reason = Column(String, nullable=True)
     source_file = Column(String, nullable=True)
+    session_id = Column(Integer, ForeignKey("upload_sessions.id"), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class AppSettings(Base):
+    __tablename__ = "app_settings"
+
+    key = Column(String, primary_key=True)
+    value = Column(String, nullable=False)
 
 
 class ChatMessage(Base):
@@ -40,7 +59,19 @@ class TransactionResponse(BaseModel):
     is_anomaly: bool
     anomaly_reason: Optional[str] = None
     source_file: Optional[str] = None
+    session_id: Optional[int] = None
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UploadSessionResponse(BaseModel):
+    id: int
+    filename: str
+    upload_date: datetime
+    statement_period: Optional[str] = None
+    transaction_count: int
 
     class Config:
         from_attributes = True

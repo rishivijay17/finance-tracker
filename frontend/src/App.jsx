@@ -7,9 +7,9 @@ import Transactions from './pages/Transactions'
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="flex h-screen bg-slate-50 overflow-hidden">
+      <div className="flex h-screen overflow-hidden" style={{ background: '#0A0A0F' }}>
         <Sidebar />
-        <main className="flex-1 overflow-y-auto scrollbar-thin">
+        <main className="flex-1 overflow-y-auto">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/chat" element={<Chat />} />

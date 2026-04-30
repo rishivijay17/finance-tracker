@@ -1,15 +1,47 @@
+import hashlib
+from datetime import datetime
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 import models
-from services.pdf_parser import extract_text_from_pdf, parse_transactions_fallback
+from services.pdf_parser import extract_text_from_pdf, parse_transactions_fallback, detect_currency
 from services.ai_service import extract_transactions
 from services.anomaly_detector import detect_anomalies
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
 
 
-def _save_transactions(db: Session, analyzed: list[dict], filename: str) -> list:
+def _compute_fingerprint(transactions: list[dict]) -> str:
+    items = sorted(
+        f"{t.get('date','')},{t.get('description','')},{t.get('amount', 0)}"
+        for t in transactions
+    )
+    return hashlib.md5("|".join(items).encode()).hexdigest()
+
+
+def _compute_statement_period(transactions: list[dict]) -> str:
+    months = []
+    for t in transactions:
+        try:
+            months.append(t.get("date", "")[:7])  # YYYY-MM
+        except Exception:
+            pass
+    if not months:
+        return "Unknown Period"
+
+    def fmt(ym: str) -> str:
+        try:
+            return datetime.strptime(ym, "%Y-%m").strftime("%B %Y")
+        except Exception:
+            return ym
+
+    lo, hi = min(months), max(months)
+    return fmt(lo) if lo == hi else f"{fmt(lo)} – {fmt(hi)}"
+
+
+def _save_transactions(
+    db: Session, analyzed: list[dict], filename: str, session_id: int
+) -> list:
     saved = []
     for t in analyzed:
         db_tx = models.Transaction(
@@ -20,12 +52,11 @@ def _save_transactions(db: Session, analyzed: list[dict], filename: str) -> list
             is_anomaly=t.get("is_anomaly", False),
             anomaly_reason=t.get("anomaly_reason"),
             source_file=filename,
+            session_id=session_id,
         )
         db.add(db_tx)
         saved.append(db_tx)
-    db.commit()
-    for s in saved:
-        db.refresh(s)
+    db.flush()
     return saved
 
 
@@ -36,7 +67,7 @@ async def upload_statement(file: UploadFile = File(...), db: Session = Depends(g
 
     contents = await file.read()
 
-    # ── Step 1: extract text with pdfplumber (fast, no API quota used) ────────
+    # ── Step 1: extract text ──────────────────────────────────────────────────
     try:
         pdf_text = extract_text_from_pdf(contents)
     except Exception as e:
@@ -51,6 +82,15 @@ async def upload_statement(file: UploadFile = File(...), db: Session = Depends(g
             ),
         )
 
+    # ── Detect and persist currency symbol ───────────────────────────────────
+    currency_symbol = detect_currency(pdf_text)
+    setting = db.query(models.AppSettings).filter_by(key="currency_symbol").first()
+    if setting:
+        setting.value = currency_symbol
+    else:
+        db.add(models.AppSettings(key="currency_symbol", value=currency_symbol))
+    db.commit()
+
     # ── Step 2: try AI extraction (with built-in 3× retry on 429) ────────────
     raw_transactions: list[dict] = []
     used_fallback = False
@@ -64,7 +104,6 @@ async def upload_statement(file: UploadFile = File(...), db: Session = Depends(g
         )
 
         if is_quota:
-            # ── Step 3: fallback to rule-based table parser ────────────────
             try:
                 raw_transactions = parse_transactions_fallback(contents)
                 used_fallback = True
@@ -79,9 +118,7 @@ async def upload_statement(file: UploadFile = File(...), db: Session = Depends(g
         elif "GEMINI_API_KEY" in str(ai_err):
             raise HTTPException(status_code=503, detail=str(ai_err))
         else:
-            raise HTTPException(
-                status_code=500, detail=f"AI parsing error: {ai_err}"
-            )
+            raise HTTPException(status_code=500, detail=f"AI parsing error: {ai_err}")
 
     if not raw_transactions:
         raise HTTPException(
@@ -93,18 +130,53 @@ async def upload_statement(file: UploadFile = File(...), db: Session = Depends(g
             ),
         )
 
-    # ── Step 4: anomaly detection + persist ───────────────────────────────────
-    analyzed = detect_anomalies(raw_transactions)
-    saved = _save_transactions(db, analyzed, file.filename)
-    anomaly_count = sum(1 for t in analyzed if t.get("is_anomaly"))
+    # ── Step 3: duplicate detection via fingerprint ───────────────────────────
+    fingerprint = _compute_fingerprint(raw_transactions)
+    existing = db.query(models.UploadSession).filter_by(fingerprint=fingerprint).first()
+    if existing:
+        return {
+            "message": "This statement has already been uploaded.",
+            "duplicate": True,
+            "count": 0,
+            "anomalies": 0,
+            "session_id": existing.id,
+            "statement_period": existing.statement_period,
+            "method": "duplicate",
+        }
 
+    # ── Step 4: anomaly detection ─────────────────────────────────────────────
+    analyzed = detect_anomalies(raw_transactions, currency_symbol=currency_symbol)
+
+    # ── Step 5: create upload session + persist transactions ─────────────────
+    statement_period = _compute_statement_period(raw_transactions)
+    session = models.UploadSession(
+        filename=file.filename,
+        statement_period=statement_period,
+        transaction_count=0,
+        fingerprint=fingerprint,
+    )
+    db.add(session)
+    db.flush()  # get session.id before inserting transactions
+
+    saved = _save_transactions(db, analyzed, file.filename, session.id)
+    session.transaction_count = len(saved)
+    db.commit()
+
+    for s in saved:
+        db.refresh(s)
+    db.refresh(session)
+
+    anomaly_count = sum(1 for t in analyzed if t.get("is_anomaly"))
     message = f"Successfully imported {len(saved)} transactions."
     if used_fallback:
         message += " (Gemini quota exceeded — categories were assigned by keyword matching, not AI)"
 
     return {
         "message": message,
+        "duplicate": False,
         "count": len(saved),
         "anomalies": anomaly_count,
+        "session_id": session.id,
+        "statement_period": statement_period,
         "method": "fallback" if used_fallback else "ai",
     }

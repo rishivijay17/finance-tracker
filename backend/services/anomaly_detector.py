@@ -2,7 +2,7 @@ import numpy as np
 from collections import defaultdict
 
 
-def detect_anomalies(transactions: list[dict]) -> list[dict]:
+def detect_anomalies(transactions: list[dict], currency_symbol: str = '$') -> list[dict]:
     """
     Flag expense transactions that are statistically unusual within their category.
     Uses a z-score threshold and a 3× mean heuristic.
@@ -38,7 +38,7 @@ def detect_anomalies(transactions: list[dict]) -> list[dict]:
                     is_anomaly = True
                     reason = (
                         f"Unusually high {cat} spend "
-                        f"(${amt:.0f} vs your typical ${s['mean']:.0f})"
+                        f"({currency_symbol}{amt:.0f} vs your typical {currency_symbol}{s['mean']:.0f})"
                     )
 
             # Secondary check: more than 3× the category average

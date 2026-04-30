@@ -18,11 +18,26 @@ export const getTransactions = (params = {}) =>
 
 export const clearTransactions = () => api.delete('/api/transactions')
 
-export const getDashboard = () => api.get('/api/analytics/dashboard')
+export const getDashboard = (sessionId = null) =>
+  api.get('/api/analytics/dashboard', {
+    params: sessionId != null ? { session_id: sessionId } : {},
+  })
 
-export const getForecast = () => api.get('/api/analytics/forecast')
+export const getCurrency = () => api.get('/api/analytics/currency')
 
-export const getAnomalies = () => api.get('/api/analytics/anomalies')
+export const getForecast = (sessionId = null) =>
+  api.get('/api/analytics/forecast', {
+    params: sessionId != null ? { session_id: sessionId } : {},
+  })
+
+export const getAnomalies = (sessionId = null) =>
+  api.get('/api/analytics/anomalies', {
+    params: sessionId != null ? { session_id: sessionId } : {},
+  })
+
+export const getSessions = () => api.get('/api/sessions')
+
+export const deleteSession = (sessionId) => api.delete(`/api/sessions/${sessionId}`)
 
 export const sendChatMessage = (message) =>
   api.post('/api/chat', { message })

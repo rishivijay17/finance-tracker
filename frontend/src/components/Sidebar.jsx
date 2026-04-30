@@ -1,32 +1,64 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, MessageSquare, Receipt, TrendingUp } from 'lucide-react'
+import { LayoutDashboard, MessageSquare, Receipt, Zap } from 'lucide-react'
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/chat', icon: MessageSquare, label: 'AI Chat' },
   { to: '/transactions', icon: Receipt, label: 'Transactions' },
+  { to: '/chat', icon: MessageSquare, label: 'AI Chat' },
 ]
 
 export default function Sidebar() {
   return (
-    <aside className="w-64 bg-slate-900 flex flex-col shrink-0 h-full">
+    <aside
+      className="flex flex-col shrink-0 h-full"
+      style={{
+        width: '232px',
+        background: 'linear-gradient(180deg, #0D0D18 0%, #0A0A0F 100%)',
+        borderRight: '1px solid #1E1E2E',
+      }}
+    >
       {/* Logo */}
-      <div className="p-6 border-b border-slate-800">
+      <div className="p-5" style={{ borderBottom: '1px solid #1E1E2E' }}>
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-900/50">
-            <TrendingUp size={18} className="text-white" />
+          <div
+            style={{
+              width: '36px',
+              height: '36px',
+              background: 'linear-gradient(135deg, #6C63FF 0%, #4A44B3 100%)',
+              borderRadius: '10px',
+              boxShadow: '0 0 20px rgba(108, 99, 255, 0.45)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <Zap size={17} color="white" fill="white" />
           </div>
           <div>
-            <h1 className="text-white font-semibold text-sm leading-tight">Finance Tracker</h1>
-            <p className="text-slate-500 text-xs">Your Personal CFO</p>
+            <h1 style={{ color: '#E8E8F0', fontWeight: 700, fontSize: '13px', lineHeight: '1.3', letterSpacing: '-0.2px' }}>
+              Finance Tracker
+            </h1>
+            <p style={{ color: '#3A3A5C', fontSize: '10px', fontWeight: 500, marginTop: '1px' }}>
+              Your Personal CFO
+            </p>
           </div>
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-3 space-y-0.5">
-        <p className="text-slate-600 text-xs font-medium uppercase tracking-wider px-3 py-2">
-          Menu
+      <nav className="flex-1 p-3" style={{ paddingTop: '20px' }}>
+        <p
+          style={{
+            color: '#3A3A5C',
+            fontSize: '9px',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+            padding: '0 14px 10px',
+          }}
+        >
+          Navigation
         </p>
         {links.map(({ to, icon: Icon, label }) => (
           <NavLink
@@ -34,24 +66,38 @@ export default function Sidebar() {
             to={to}
             end={to === '/'}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                isActive
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`
+              `sidebar-link ${isActive ? 'sidebar-link-active' : ''}`
             }
           >
-            <Icon size={17} />
-            {label}
+            {({ isActive }) => (
+              <>
+                <Icon
+                  size={15}
+                  style={{ color: isActive ? '#6C63FF' : '#6B6B8A', flexShrink: 0 }}
+                />
+                <span>{label}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-slate-800">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-          <p className="text-slate-500 text-xs">Powered by Gemini AI</p>
+      <div className="p-4" style={{ borderTop: '1px solid #1E1E2E' }}>
+        <div className="flex items-center gap-2.5 px-2">
+          <div
+            className="glow-dot"
+            style={{
+              width: '7px',
+              height: '7px',
+              background: '#00D4AA',
+              borderRadius: '50%',
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ color: '#6B6B8A', fontSize: '11px', fontWeight: 500 }}>
+            Powered by Gemini AI
+          </span>
         </div>
       </div>
     </aside>

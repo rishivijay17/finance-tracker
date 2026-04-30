@@ -12,31 +12,26 @@ INCOME_KEYWORDS = {
 }
 
 _CATEGORY_MAP: dict[str, list[str]] = {
-    "Food":          ["zomato", "swiggy", "bigbasket", "restaurant", "cafe", "food",
-                      "pizza", "dominos", "mcdonald", "kfc", "instamart", "blinkit", "grocery"],
-    "Transport":     ["ola", "uber", "irctc", "train", "metro", "petrol", "diesel",
-                      "hpcl", "iocl", "bpcl", "rapido", "cab", "bus"],
-    "Shopping":      ["amazon", "flipkart", "myntra", "ajio", "nykaa", "reliance",
-                      "dmart", "mall", "shop", "meesho"],
-    "Entertainment": ["netflix", "hotstar", "disney", "spotify", "bookmyshow",
-                      "pvr", "inox", "cinema", "youtube"],
-    "Bills":         ["electricity", "bescom", "jio", "airtel", "vodafone", "bsnl",
-                      "gas", "water", "broadband", "recharge", "lic", "insurance", "premium"],
-    "Health":        ["apollo", "medplus", "pharma", "pharmacy", "hospital", "clinic",
-                      "doctor", "lab", "health", "gym", "cult"],
-    "Travel":        ["hotel", "oyo", "makemytrip", "goibibo", "cleartrip",
-                      "flight", "indigo", "airasia", "spicejet"],
-    "Income":        list(INCOME_KEYWORDS),
-    "Transfer":      ["neft", "rtgs", "imps", "transfer", "atm"],
+    "Food":          ["zomato", "swiggy food", "swiggyit", "restaurant", "cafe", "food court",
+                      "pizza", "dominos", "mcdonald", "kfc", "burger king", "subway"],
+    "Petrol":        ["hpcl", "bpcl", "iocl", "indian oil", "hp petrol", "essar petrol",
+                      "petrol", "fuel", "filling station", "fuel pump"],
+    "Groceries":     ["blinkit", "instamart", "zepto", "bigbasket", "big basket",
+                      "reliance smart", "dmart", "d-mart", "supermarket", "grocer"],
+    "Utilities":     ["electricity", "bescom", "mseb", "msedcl", "jio", "airtel", "vodafone",
+                      "bsnl", "broadband", "recharge", "netflix", "hotstar", "disney",
+                      "amazon prime", "spotify", "gas cylinder", "lpg", "water bill",
+                      "internet bill", "electric bill"],
 }
 
 
 def _categorize(description: str) -> str:
     d = description.lower()
+    # Check specific categories first (order matters)
     for category, keywords in _CATEGORY_MAP.items():
         if any(kw in d for kw in keywords):
             return category
-    return "Other"
+    return "Miscellaneous"
 
 
 def _try_parse_date(s: str) -> Optional[str]:
@@ -64,6 +59,26 @@ def _parse_amount(s: str) -> Optional[float]:
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
+
+_INDIAN_BANKS = re.compile(
+    r'\b(HDFC|SBI|ICICI|Axis|Kotak|PNB|Bank of Baroda|Canara|Union Bank|'
+    r'IndusInd|Yes Bank|IDBI|Federal Bank|RBL|South Indian Bank|'
+    r'Karnataka Bank|Punjab National|Central Bank)\b',
+    re.IGNORECASE,
+)
+
+def detect_currency(text: str) -> str:
+    """Return '₹' for Indian bank statements, '$' otherwise.
+
+    Triggers on: ₹ symbol, Rs. prefix, INR anywhere, or the name of a
+    well-known Indian bank appearing in the document.
+    """
+    if re.search(r'₹|Rs\.|INR\b', text):
+        return '₹'
+    if _INDIAN_BANKS.search(text):
+        return '₹'
+    return '$'
+
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
     """

@@ -1,11 +1,17 @@
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 
-export default function AnomalyCard({ anomalies }) {
+export default function AnomalyCard({ anomalies, currency = '$' }) {
   if (!anomalies.length) {
     return (
-      <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-        <CheckCircle2 size={20} className="text-emerald-600 shrink-0" />
-        <p className="text-emerald-700 text-sm font-medium">
+      <div
+        className="flex items-center gap-3 rounded-xl p-4"
+        style={{
+          background: 'rgba(0, 212, 170, 0.06)',
+          border: '1px solid rgba(0, 212, 170, 0.2)',
+        }}
+      >
+        <CheckCircle2 size={18} color="#00D4AA" style={{ flexShrink: 0 }} />
+        <p style={{ color: '#00D4AA', fontSize: '13px', fontWeight: 500 }}>
           No unusual spending detected — everything looks normal!
         </p>
       </div>
@@ -13,24 +19,55 @@ export default function AnomalyCard({ anomalies }) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {anomalies.map((a) => (
         <div
           key={a.id}
-          className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4"
+          className="flex items-start gap-3 rounded-xl p-4"
+          style={{
+            background: 'rgba(255, 184, 0, 0.05)',
+            border: '1px solid rgba(255, 184, 0, 0.15)',
+          }}
         >
-          <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-            <AlertTriangle size={15} className="text-amber-600" />
+          <div
+            style={{
+              width: '30px',
+              height: '30px',
+              background: 'rgba(255, 184, 0, 0.12)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              marginTop: '1px',
+            }}
+          >
+            <AlertTriangle size={13} color="#FFB800" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <p className="text-slate-800 text-sm font-semibold truncate">{a.description}</p>
-              <span className="text-red-600 text-sm font-bold shrink-0">
-                −${Math.abs(a.amount).toFixed(2)}
+              <p
+                className="truncate"
+                style={{ color: '#E8E8F0', fontSize: '13px', fontWeight: 600 }}
+              >
+                {a.description}
+              </p>
+              <span
+                style={{
+                  color: '#FF4757',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  flexShrink: 0,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                −{currency}{Math.abs(a.amount).toFixed(2)}
               </span>
             </div>
-            <p className="text-amber-700 text-xs mt-0.5">{a.anomaly_reason}</p>
-            <p className="text-slate-400 text-xs mt-0.5">
+            <p style={{ color: '#FFB800', fontSize: '11px', marginTop: '3px' }}>
+              {a.anomaly_reason}
+            </p>
+            <p style={{ color: '#3A3A5C', fontSize: '11px', marginTop: '2px' }}>
               {a.date} · {a.category}
             </p>
           </div>

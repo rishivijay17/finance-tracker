@@ -15,6 +15,9 @@ def _build_financial_summary(db: Session) -> str:
     if not transactions:
         return "No transaction data is available yet."
 
+    setting = db.query(models.AppSettings).filter_by(key='currency_symbol').first()
+    cur = setting.value if setting else '$'
+
     total_income = sum(t.amount for t in transactions if t.amount > 0)
     total_expenses = sum(abs(t.amount) for t in transactions if t.amount < 0)
     net = total_income - total_expenses
@@ -25,7 +28,7 @@ def _build_financial_summary(db: Session) -> str:
             by_category[t.category] += abs(t.amount)
 
     cat_lines = "\n".join(
-        f"  - {cat}: ${amt:.2f}"
+        f"  - {cat}: {cur}{amt:.2f}"
         for cat, amt in sorted(by_category.items(), key=lambda x: -x[1])
     )
 
@@ -36,21 +39,21 @@ def _build_financial_summary(db: Session) -> str:
         .all()
     )
     recent_lines = "\n".join(
-        f"  {t.date} | {t.description} | ${t.amount:.2f} | {t.category}"
+        f"  {t.date} | {t.description} | {cur}{t.amount:.2f} | {t.category}"
         for t in recent
     )
 
     anomalies = [t for t in transactions if t.is_anomaly]
     anomaly_lines = (
-        "\n".join(f"  - {t.description}: ${abs(t.amount):.2f} ({t.anomaly_reason})" for t in anomalies)
+        "\n".join(f"  - {t.description}: {cur}{abs(t.amount):.2f} ({t.anomaly_reason})" for t in anomalies)
         if anomalies
         else "  None detected"
     )
 
     return f"""
-Total Income: ${total_income:.2f}
-Total Expenses: ${total_expenses:.2f}
-Net Balance Change: ${net:.2f}
+Total Income: {cur}{total_income:.2f}
+Total Expenses: {cur}{total_expenses:.2f}
+Net Balance Change: {cur}{net:.2f}
 Total Transactions: {len(transactions)}
 
 Spending by Category:
