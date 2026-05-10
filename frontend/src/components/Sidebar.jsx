@@ -37,11 +37,8 @@ export default function Sidebar() {
           </div>
           <div>
             <h1 style={{ color: '#E8E8F0', fontWeight: 700, fontSize: '13px', lineHeight: '1.3', letterSpacing: '-0.2px' }}>
-              Finance Tracker
+              Rishi's Finance Tracker
             </h1>
-            <p style={{ color: '#3A3A5C', fontSize: '10px', fontWeight: 500, marginTop: '1px' }}>
-              Your Personal CFO
-            </p>
           </div>
         </div>
       </div>
