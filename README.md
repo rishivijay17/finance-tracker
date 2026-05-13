@@ -50,45 +50,39 @@ Everything runs locally. No cloud hosting, no data leaving your machine after pa
 
 You'll need Python 3.10+ and Node 18+.
 
-### 1. Get a free Gemini API key
+### Easy Way (Recommended)
+Double click `Launch Finance Tracker.bat` in the project folder. It will automatically start the backend, frontend and open the app in your browser.
 
+### Manual Way
+
+**1. Get a free Gemini API key**
 Go to [aistudio.google.com](https://aistudio.google.com), sign in with Google, and create an API key.
 
-### 2. Backend
-
+**2. Backend**
 ```bash
 cd backend
-
 python -m venv venv
 venv\Scripts\activate        # Windows
-# source venv/bin/activate   # Mac/Linux
-
 pip install -r requirements.txt
-
 copy .env.example .env
 # Open .env and add your Gemini API key
 ```
 
-### 3. Start the backend
-
+**3. Start the backend**
 ```bash
 uvicorn main:app --reload
 ```
-
 Leave this terminal open. Backend runs on `http://localhost:8000`.
 
-### 4. Frontend
-
+**4. Frontend**
 Open a second terminal:
-
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-### 5. Open the app
-
+**5. Open the app**
 Go to `http://localhost:5173` in your browser.
 
 ---
