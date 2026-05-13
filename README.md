@@ -32,7 +32,7 @@ Built this for myself — I'm a final year student living alone and wanted somet
 | Frontend | React + Tailwind + Vite | Just what I know |
 | Backend | FastAPI (Python) | Fast to build, automatic docs |
 | Database | SQLite | No setup, runs locally, good enough |
-| AI | Google Gemini 2.0 Flash | Free tier, handles messy PDFs well |
+| AI | Google Gemini 2.5 Flash | Free tier, handles messy PDFs well |
 | PDF parsing | pdfplumber | Extracts tables from PDFs reliably |
 | Charts | Recharts | Easy to use with React |
 
