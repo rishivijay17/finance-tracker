@@ -1,13 +1,17 @@
-import { useState } from 'react'
-import { AlertTriangle, Search, SlidersHorizontal } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { AlertTriangle, Search, SlidersHorizontal, HelpCircle } from 'lucide-react'
 
 const CATEGORIES = [
-  'All', 'Food', 'Transport', 'Shopping', 'Entertainment',
-  'Bills', 'Health', 'Travel', 'Income', 'Transfer', 'Other',
+  'All', 'Food', 'Petrol', 'Groceries', 'Utilities', 'Miscellaneous',
+  'Transport', 'Shopping', 'Entertainment', 'Bills', 'Health', 'Travel', 'Income', 'Transfer', 'Other',
 ]
 
 const CAT_STYLE = {
   Food:          { bg: 'rgba(255,107,61,0.12)',  color: '#FF6B3D' },
+  Petrol:        { bg: 'rgba(255,184,0,0.12)',   color: '#FFB800' },
+  Groceries:     { bg: 'rgba(0,212,170,0.12)',   color: '#00D4AA' },
+  Utilities:     { bg: 'rgba(6,182,212,0.12)',   color: '#06B6D4' },
+  Miscellaneous: { bg: 'rgba(107,107,138,0.12)', color: '#8B8BAA' },
   Transport:     { bg: 'rgba(74,143,255,0.12)',   color: '#4A8FFF' },
   Shopping:      { bg: 'rgba(167,139,250,0.12)',  color: '#A78BFA' },
   Entertainment: { bg: 'rgba(236,72,153,0.12)',   color: '#EC4899' },
@@ -17,6 +21,78 @@ const CAT_STYLE = {
   Income:        { bg: 'rgba(0,212,170,0.12)',    color: '#00D4AA' },
   Transfer:      { bg: 'rgba(107,107,138,0.12)', color: '#6B6B8A' },
   Other:         { bg: 'rgba(58,58,92,0.3)',      color: '#6B6B8A' },
+}
+
+function CategorizationTooltip({ reason }) {
+  const [visible, setVisible] = useState(false)
+  const btnRef = useRef(null)
+
+  if (!reason) return null
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+      <button
+        ref={btnRef}
+        onMouseEnter={() => setVisible(true)}
+        onMouseLeave={() => setVisible(false)}
+        onFocus={() => setVisible(true)}
+        onBlur={() => setVisible(false)}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          cursor: 'help',
+          padding: '0 0 0 4px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          color: '#3A3A5C',
+          lineHeight: 0,
+        }}
+        title={reason}
+        aria-label={`Categorized because: ${reason}`}
+      >
+        <HelpCircle size={11} />
+      </button>
+      {visible && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 'calc(100% + 6px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#1E1E2E',
+            border: '1px solid #2E2E40',
+            borderRadius: '8px',
+            padding: '8px 10px',
+            fontSize: '11px',
+            color: '#C8C8E0',
+            whiteSpace: 'normal',
+            maxWidth: '260px',
+            zIndex: 100,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+            lineHeight: 1.5,
+            pointerEvents: 'none',
+          }}
+        >
+          <span style={{ color: '#6B6B8A', fontWeight: 600, display: 'block', marginBottom: '2px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Why this category?
+          </span>
+          {reason}
+          {/* Tooltip arrow */}
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 0,
+            height: 0,
+            borderLeft: '5px solid transparent',
+            borderRight: '5px solid transparent',
+            borderTop: '5px solid #2E2E40',
+          }} />
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function TransactionTable({ transactions, currency = '$' }) {
@@ -151,19 +227,22 @@ export default function TransactionTable({ transactions, currency = '$' }) {
                       </div>
                     </td>
                     <td style={{ padding: '11px 12px' }}>
-                      <span
-                        style={{
-                          background: catStyle.bg,
-                          color: catStyle.color,
-                          padding: '3px 8px',
-                          borderRadius: '999px',
-                          fontSize: '10px',
-                          fontWeight: 600,
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {t.category}
-                      </span>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                        <span
+                          style={{
+                            background: catStyle.bg,
+                            color: catStyle.color,
+                            padding: '3px 8px',
+                            borderRadius: '999px',
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {t.category}
+                        </span>
+                        <CategorizationTooltip reason={t.categorization_reason} />
+                      </div>
                     </td>
                     <td
                       style={{

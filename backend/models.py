@@ -27,6 +27,7 @@ class Transaction(Base):
     category = Column(String, default="Other")
     is_anomaly = Column(Boolean, default=False)
     anomaly_reason = Column(String, nullable=True)
+    categorization_reason = Column(String, nullable=True)
     source_file = Column(String, nullable=True)
     session_id = Column(Integer, ForeignKey("upload_sessions.id"), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
@@ -48,6 +49,28 @@ class ChatMessage(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+class RecurringPayment(Base):
+    __tablename__ = "recurring_payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("upload_sessions.id"), nullable=True)
+    name = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)
+    frequency = Column(String, nullable=False)  # monthly, weekly, quarterly, annual
+    annual_cost = Column(Float, nullable=False)
+    category = Column(String, default="Utilities")
+    last_date = Column(String, nullable=True)
+
+
+class BehavioralInsight(Base):
+    __tablename__ = "behavioral_insights"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("upload_sessions.id"), nullable=True)
+    insight = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
 class TransactionResponse(BaseModel):
@@ -58,6 +81,7 @@ class TransactionResponse(BaseModel):
     category: str
     is_anomaly: bool
     anomaly_reason: Optional[str] = None
+    categorization_reason: Optional[str] = None
     source_file: Optional[str] = None
     session_id: Optional[int] = None
     created_at: datetime

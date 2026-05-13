@@ -8,7 +8,7 @@ from routers.chat import router as chat_router
 from routers.analytics import router as analytics_router
 from routers.sessions import router as sessions_router
 
-# Create all new tables (upload_sessions, etc.)
+# Create all new tables (upload_sessions, recurring_payments, behavioral_insights, etc.)
 Base.metadata.create_all(bind=engine)
 
 # ── Schema migrations for existing databases ──────────────────────────────────
@@ -21,6 +21,11 @@ with engine.connect() as conn:
         if "session_id" not in tx_cols:
             conn.execute(sql_text(
                 "ALTER TABLE transactions ADD COLUMN session_id INTEGER REFERENCES upload_sessions(id)"
+            ))
+            conn.commit()
+        if "categorization_reason" not in tx_cols:
+            conn.execute(sql_text(
+                "ALTER TABLE transactions ADD COLUMN categorization_reason TEXT"
             ))
             conn.commit()
 
@@ -51,7 +56,7 @@ with engine.connect() as conn:
             conn.commit()
 # ─────────────────────────────────────────────────────────────────────────────
 
-app = FastAPI(title="Finance Tracker API", version="2.0.0")
+app = FastAPI(title="Finance Tracker API", version="3.0.0")
 
 app.add_middleware(
     CORSMiddleware,

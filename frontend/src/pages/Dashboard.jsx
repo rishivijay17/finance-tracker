@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   IndianRupee, DollarSign, TrendingDown, TrendingUp, Activity,
   Flame, PiggyBank, AlertOctagon, ChevronDown, Trash2, Calendar,
+  Brain, Sliders, RefreshCw, Lock, Shield,
 } from 'lucide-react'
 import StatCard from '../components/StatCard'
 import SpendingPieChart from '../components/SpendingPieChart'
@@ -9,8 +10,13 @@ import MonthlyBarChart from '../components/MonthlyBarChart'
 import AnomalyCard from '../components/AnomalyCard'
 import ForecastCard from '../components/ForecastCard'
 import UploadZone from '../components/UploadZone'
+import HealthScoreGauge from '../components/HealthScoreGauge'
+import WhatIfSimulator from '../components/WhatIfSimulator'
+import BehavioralInsightsCard from '../components/BehavioralInsightsCard'
+import RecurringPaymentsCard from '../components/RecurringPaymentsCard'
 import {
   getDashboard, getForecast, getAnomalies, getSessions, deleteSession,
+  getHealthScore, getInsights, getRecurring,
 } from '../api/client'
 import toast from 'react-hot-toast'
 
@@ -59,6 +65,81 @@ function InsightCard({ icon: Icon, label, value, color = '#6C63FF' }) {
           {value}
         </p>
       </div>
+    </div>
+  )
+}
+
+function SectionCard({ title, subtitle, icon: Icon, iconColor = '#6C63FF', children }) {
+  return (
+    <div className="dark-card-static p-6">
+      <div className="flex items-center gap-3" style={{ marginBottom: '16px' }}>
+        <div
+          style={{
+            width: '30px',
+            height: '30px',
+            background: `${iconColor}18`,
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <Icon size={14} color={iconColor} />
+        </div>
+        <div>
+          <p style={{ color: '#E8E8F0', fontSize: '13px', fontWeight: 700 }}>{title}</p>
+          {subtitle && <p style={{ color: '#3A3A5C', fontSize: '11px', marginTop: '2px' }}>{subtitle}</p>}
+        </div>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function PrivacyBadge() {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        gap: '6px',
+        padding: expanded ? '10px 14px' : '6px 12px',
+        background: 'rgba(0,212,170,0.06)',
+        border: '1px solid rgba(0,212,170,0.2)',
+        borderRadius: '10px',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+        flexDirection: expanded ? 'column' : 'row',
+        alignItems: expanded ? 'flex-start' : 'center',
+      }}
+      onClick={() => setExpanded((v) => !v)}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <Shield size={12} color="#00D4AA" />
+        <span style={{ color: '#00D4AA', fontSize: '11px', fontWeight: 600 }}>Privacy First</span>
+        <ChevronDown
+          size={11}
+          color="#00D4AA"
+          style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
+        />
+      </div>
+      {expanded && (
+        <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {[
+            'All processing happens on your local machine',
+            'Bank statement deleted after parsing',
+            'Only Gemini API receives text for categorization',
+            'No data stored on external servers',
+          ].map((item) => (
+            <div key={item} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '5px', height: '5px', background: '#00D4AA', borderRadius: '50%', flexShrink: 0 }} />
+              <span style={{ color: '#6B6B8A', fontSize: '11px' }}>{item}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -208,17 +289,27 @@ export default function Dashboard() {
   const [dashboard, setDashboard] = useState(null)
   const [forecast, setForecast] = useState(null)
   const [anomalies, setAnomalies] = useState([])
+  const [healthScore, setHealthScore] = useState(null)
+  const [insights, setInsights] = useState([])
+  const [recurring, setRecurring] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [insightsLoading, setInsightsLoading] = useState(false)
 
   const loadDashboardData = async (sid) => {
-    const [d, f, a] = await Promise.all([
+    const [d, f, a, hs, ins, rec] = await Promise.all([
       getDashboard(sid),
       getForecast(sid),
       getAnomalies(sid),
+      getHealthScore(sid),
+      getInsights(sid),
+      getRecurring(sid),
     ])
     setDashboard(d.data)
     setForecast(f.data)
     setAnomalies(a.data)
+    setHealthScore(hs.data)
+    setInsights(ins.data?.insights ?? [])
+    setRecurring(rec.data)
   }
 
   useEffect(() => {
@@ -312,7 +403,7 @@ export default function Dashboard() {
 
       {/* Page Header */}
       <div style={{ marginBottom: '28px' }}>
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
             <h1 style={{ color: '#E8E8F0', fontSize: '22px', fontWeight: 800, letterSpacing: '-0.4px' }}>
               Dashboard
@@ -321,7 +412,8 @@ export default function Dashboard() {
               {today}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <PrivacyBadge />
             {sessions.length > 0 && (
               <SessionDropdown
                 sessions={sessions}
@@ -434,6 +526,32 @@ export default function Dashboard() {
             />
           </div>
 
+          {/* Health Score + AI Insights */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <SectionCard
+              title="Financial Health Score"
+              subtitle="Based on savings, consistency, balance & anomalies"
+              icon={Activity}
+              iconColor={healthScore?.color ?? '#6C63FF'}
+            >
+              <HealthScoreGauge
+                score={healthScore?.score ?? 0}
+                grade={healthScore?.grade ?? 'No Data'}
+                color={healthScore?.color ?? '#6B6B8A'}
+                breakdown={healthScore?.breakdown ?? {}}
+              />
+            </SectionCard>
+
+            <SectionCard
+              title="AI Spending Insights"
+              subtitle="Behavioral patterns detected in your transactions"
+              icon={Brain}
+              iconColor="#6C63FF"
+            >
+              <BehavioralInsightsCard insights={insights} loading={false} />
+            </SectionCard>
+          </div>
+
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <div className="dark-card-static p-6">
@@ -454,6 +572,32 @@ export default function Dashboard() {
               </p>
               <MonthlyBarChart data={dashboard.monthly_data} currency={cur} />
             </div>
+          </div>
+
+          {/* What If Simulator + Recurring Payments */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <SectionCard
+              title="What If Simulator"
+              subtitle="Adjust spending to see projected savings"
+              icon={Sliders}
+              iconColor="#A78BFA"
+            >
+              <WhatIfSimulator
+                categories={dashboard.categories ?? {}}
+                monthsCount={dashboard.months_count ?? 1}
+                totalIncome={dashboard.total_income ?? 0}
+                currency={cur}
+              />
+            </SectionCard>
+
+            <SectionCard
+              title="Recurring Payments"
+              subtitle="Automatically detected subscriptions and bills"
+              icon={RefreshCw}
+              iconColor="#06B6D4"
+            >
+              <RecurringPaymentsCard data={recurring} loading={false} />
+            </SectionCard>
           </div>
 
           {/* Anomalies + Forecast */}

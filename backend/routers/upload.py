@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 from services.pdf_parser import extract_text_from_pdf, parse_transactions_fallback, detect_currency
-from services.ai_service import extract_transactions
+from services.ai_service import extract_transactions, generate_behavioral_insights
 from services.anomaly_detector import detect_anomalies
+from services.recurring_detector import detect_recurring
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
 
@@ -51,6 +52,7 @@ def _save_transactions(
             category=t.get("category", "Other"),
             is_anomaly=t.get("is_anomaly", False),
             anomaly_reason=t.get("anomaly_reason"),
+            categorization_reason=t.get("categorization_reason"),
             source_file=filename,
             session_id=session_id,
         )
@@ -165,6 +167,32 @@ async def upload_statement(file: UploadFile = File(...), db: Session = Depends(g
     for s in saved:
         db.refresh(s)
     db.refresh(session)
+
+    # ── Step 6: generate behavioral insights (non-critical) ──────────────────
+    try:
+        insights = generate_behavioral_insights(analyzed, currency_symbol)
+        for text in insights:
+            db.add(models.BehavioralInsight(session_id=session.id, insight=text))
+        db.commit()
+    except Exception:
+        pass  # Insights are non-critical — upload succeeds regardless
+
+    # ── Step 7: detect recurring payments (non-critical) ─────────────────────
+    try:
+        recurring = detect_recurring(analyzed)
+        for r in recurring:
+            db.add(models.RecurringPayment(
+                session_id=session.id,
+                name=r["name"],
+                amount=r["amount"],
+                frequency=r["frequency"],
+                annual_cost=r["annual_cost"],
+                category=r["category"],
+                last_date=r["last_date"],
+            ))
+        db.commit()
+    except Exception:
+        pass  # Recurring detection is non-critical
 
     anomaly_count = sum(1 for t in analyzed if t.get("is_anomaly"))
     message = f"Successfully imported {len(saved)} transactions."

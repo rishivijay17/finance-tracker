@@ -6,6 +6,7 @@ from collections import defaultdict
 from datetime import date
 from typing import Optional
 import calendar
+import math
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -16,7 +17,6 @@ def _get_currency(db: Session) -> str:
 
 
 def _resolve_session_id(session_id: Optional[int], db: Session) -> Optional[int]:
-    """If no session_id given, return the latest session's id (or None if no sessions)."""
     if session_id is not None:
         return session_id
     latest = (
@@ -57,6 +57,7 @@ def get_dashboard(
             "recent_transactions": [],
             "currency_symbol": currency_symbol,
             "session_id": sid,
+            "months_count": 0,
         }
 
     total_income = sum(t.amount for t in transactions if t.amount > 0)
@@ -108,6 +109,7 @@ def get_dashboard(
         "recent_transactions": recent_list,
         "currency_symbol": currency_symbol,
         "session_id": sid,
+        "months_count": len(monthly_data) or 1,
     }
 
 
@@ -181,3 +183,170 @@ def get_anomalies(
         }
         for t in anomalies
     ]
+
+
+@router.get("/health-score")
+def get_health_score(
+    session_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    sid = _resolve_session_id(session_id, db)
+
+    query = db.query(models.Transaction)
+    if sid is not None:
+        query = query.filter(models.Transaction.session_id == sid)
+    transactions = query.all()
+
+    if not transactions:
+        return {
+            "score": 0,
+            "grade": "No Data",
+            "color": "#6B6B8A",
+            "breakdown": {"savings_rate": 0, "consistency": 0, "category_balance": 0, "anomaly_control": 0},
+            "savings_rate_pct": 0,
+        }
+
+    expenses = [t for t in transactions if t.amount < 0]
+    income_txns = [t for t in transactions if t.amount > 0]
+    total_income = sum(t.amount for t in income_txns)
+    total_expenses = sum(abs(t.amount) for t in expenses)
+
+    # 1. Savings Rate (40 points) — 20% savings = full score
+    if total_income > 0:
+        savings_rate = (total_income - total_expenses) / total_income
+        savings_score = min(40.0, max(0.0, savings_rate * 200))
+        savings_rate_pct = round(savings_rate * 100, 1)
+    else:
+        savings_score = 0.0
+        savings_rate_pct = 0.0
+
+    # 2. Spending Consistency (20 points) — lower variance = higher score
+    monthly_expenses: dict[str, float] = defaultdict(float)
+    for t in expenses:
+        monthly_expenses[t.date[:7]] += abs(t.amount)
+
+    if len(monthly_expenses) >= 2:
+        vals = list(monthly_expenses.values())
+        mean = sum(vals) / len(vals)
+        variance = sum((v - mean) ** 2 for v in vals) / len(vals)
+        std_dev = math.sqrt(variance)
+        cv = std_dev / mean if mean > 0 else 1.0
+        consistency_score = max(0.0, 20.0 * (1.0 - min(cv, 1.0)))
+    else:
+        consistency_score = 10.0  # Neutral for single-month data
+
+    # 3. Category Balance (20 points) — more spread = healthier
+    cat_totals: dict[str, float] = defaultdict(float)
+    for t in expenses:
+        cat_totals[t.category] += abs(t.amount)
+
+    if cat_totals and total_expenses > 0:
+        meaningful = sum(1 for v in cat_totals.values() if v / total_expenses > 0.05)
+        balance_score = min(20.0, meaningful * 4.0)
+    else:
+        balance_score = 0.0
+
+    # 4. Anomaly Control (20 points) — fewer anomalies = better
+    expense_count = len(expenses)
+    anomaly_count = sum(1 for t in transactions if t.is_anomaly)
+    if expense_count > 0:
+        anomaly_pct = anomaly_count / expense_count
+        anomaly_score = max(0.0, 20.0 * (1.0 - anomaly_pct * 5.0))
+    else:
+        anomaly_score = 20.0
+
+    total_score = savings_score + consistency_score + balance_score + anomaly_score
+    score = min(100, max(0, round(total_score)))
+
+    if score >= 80:
+        grade, color = "Excellent", "#00D4AA"
+    elif score >= 60:
+        grade, color = "Good", "#FFB800"
+    elif score >= 40:
+        grade, color = "Fair", "#FF8C00"
+    else:
+        grade, color = "Needs Attention", "#FF4757"
+
+    return {
+        "score": score,
+        "grade": grade,
+        "color": color,
+        "breakdown": {
+            "savings_rate": round(savings_score, 1),
+            "consistency": round(consistency_score, 1),
+            "category_balance": round(balance_score, 1),
+            "anomaly_control": round(anomaly_score, 1),
+        },
+        "savings_rate_pct": savings_rate_pct,
+    }
+
+
+@router.get("/insights")
+def get_insights(
+    session_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    sid = _resolve_session_id(session_id, db)
+
+    query = db.query(models.BehavioralInsight)
+    if sid is not None:
+        query = query.filter(models.BehavioralInsight.session_id == sid)
+    rows = query.order_by(models.BehavioralInsight.created_at).all()
+
+    return {"insights": [r.insight for r in rows]}
+
+
+@router.get("/recurring")
+def get_recurring(
+    session_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    sid = _resolve_session_id(session_id, db)
+    currency_symbol = _get_currency(db)
+
+    query = db.query(models.RecurringPayment)
+    if sid is not None:
+        query = query.filter(models.RecurringPayment.session_id == sid)
+    payments = query.order_by(models.RecurringPayment.annual_cost.desc()).all()
+
+    # Also get total income to calculate percentage
+    txn_query = db.query(models.Transaction)
+    if sid is not None:
+        txn_query = txn_query.filter(models.Transaction.session_id == sid)
+    transactions = txn_query.all()
+
+    months_set = set(t.date[:7] for t in transactions if t.date)
+    num_months = max(len(months_set), 1)
+    monthly_income = sum(t.amount for t in transactions if t.amount > 0) / num_months
+
+    total_monthly_recurring = sum(
+        p.amount if p.frequency == "monthly" else
+        p.amount * 52 / 12 if p.frequency == "weekly" else
+        p.amount * 26 / 12 if p.frequency == "bi-weekly" else
+        p.amount / 3 if p.frequency == "quarterly" else
+        p.amount / 12
+        for p in payments
+    )
+
+    income_pct = round(total_monthly_recurring / monthly_income * 100, 1) if monthly_income > 0 else 0
+    warning = income_pct > 15
+
+    return {
+        "payments": [
+            {
+                "id": p.id,
+                "name": p.name,
+                "amount": p.amount,
+                "frequency": p.frequency,
+                "annual_cost": p.annual_cost,
+                "category": p.category,
+                "last_date": p.last_date,
+            }
+            for p in payments
+        ],
+        "total_annual": round(sum(p.annual_cost for p in payments), 2),
+        "total_monthly_recurring": round(total_monthly_recurring, 2),
+        "income_percentage": income_pct,
+        "warning": warning,
+        "currency_symbol": currency_symbol,
+    }

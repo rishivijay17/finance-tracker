@@ -35,6 +35,21 @@ export const getAnomalies = (sessionId = null) =>
     params: sessionId != null ? { session_id: sessionId } : {},
   })
 
+export const getHealthScore = (sessionId = null) =>
+  api.get('/api/analytics/health-score', {
+    params: sessionId != null ? { session_id: sessionId } : {},
+  })
+
+export const getInsights = (sessionId = null) =>
+  api.get('/api/analytics/insights', {
+    params: sessionId != null ? { session_id: sessionId } : {},
+  })
+
+export const getRecurring = (sessionId = null) =>
+  api.get('/api/analytics/recurring', {
+    params: sessionId != null ? { session_id: sessionId } : {},
+  })
+
 export const getSessions = () => api.get('/api/sessions')
 
 export const deleteSession = (sessionId) => api.delete(`/api/sessions/${sessionId}`)
