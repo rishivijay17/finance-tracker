@@ -4,9 +4,15 @@ A web app that parses your bank statement PDFs, categorizes transactions automat
 
 Built this for myself — I'm a final year student living alone and wanted something smarter than manually tagging transactions in a notes app.
 
+## Screenshots
+
 ![Dashboard](screenshots/dashboard.png)
+
+![What If Simulator](screenshots/simulator.png)
+
 ![Transactions](screenshots/transactions.png)
-![Chat](screenshots/chat.png)
+
+![AI Chat](screenshots/chat.png)
 
 ---
 
